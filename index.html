@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buckshot Roulette (Web Replica)</title>
+    <style>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background-color: #000; color: white; font-family: sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            overflow: hidden; 
+        }
+        
+        .screen {
+            display: none; 
+            position: relative;
+            width: 100%; height: 100%; 
+            max-width: calc(100vh * (16 / 9)); 
+            max-height: calc(100vw * (9 / 16)); 
+            aspect-ratio: 16 / 9;
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+        }
+        .screen.active { display: block; }
+
+        #login-screen { background-image: url('images/00login.png'); }
+        #lobby-screen { background-image: url('images/01lobby.png'); }
+        #room-screen { background-image: url('images/02room.png'); }
+
+        .ui-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; text-align: center; }
+        input, button { padding: 10px; margin: 5px; font-size: 16px; cursor: pointer; }
+
+        .player-sprite {
+            position: absolute; bottom: 0%; left: 50%; transform: translateX(-50%); 
+            width: 60%; height: auto; z-index: 10;
+        }
+        .enemy-sprite {
+            position: absolute; top: 33.4%; left: 50%; transform: translate(-50%, -50%);
+            width: 48%; height: auto; z-index: 5;
+        }
+
+        #left-ui {
+            position: absolute; left: 3%; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 15px; z-index: 20;
+        }
+        .action-btn { background: #222; color: #fff; border: 2px solid #555; padding: 15px 20px; font-size: 1.5vw; text-align: left; transition: 0.2s; }
+        .action-btn:hover { background: #444; }
+        .action-btn.confirm { background: #8b0000; border-color: #ff0000; font-weight: bold; }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #right-ui {
+            position: absolute; right: 0; top: 0; height: 100%; 
+            width: 25%; 
+            display: flex; flex-direction: column; justify-content: center; gap: 30px;
+            z-index: 50; 
+            background-color: #000000; 
+            padding: 20px; box-sizing: border-box;
+            border-left: 4px solid #333; 
+        }
+
+        /* ==== 오른쪽 UI 배경 이미지 설정 ==== */
+        .right-bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            opacity: 0.1; /* 불투명도 10% */
+            z-index: -1; 
+            pointer-events: none; 
+        }
+
+        .status-text { font-size: 1.8vw; font-weight: bold; margin-bottom: 5px; color: #ddd; }
+        .health-bar { font-size: 2vw; letter-spacing: 2px; color: #ffcc00; }
+        
+        /* ==== 12게이지 샷건 탄환 리얼 디자인 ==== */
+        .ammo-cage { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .shell { 
+            width: 2.2vw; 
+            height: 6vw; 
+            border: 2px solid #000; 
+            border-radius: 5px 5px 2px 2px; /* 윗부분은 살짝 둥글게, 아랫부분은 평평하게 */
+            position: relative;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.8);
+            overflow: hidden; /* 금색 탄피가 밖으로 튀어나오지 않게 */
+        }
+        
+        /* 튜브(플라스틱) 부분 입체감 명암 (좌우가 어둡고 가운데가 밝음) */
+        .shell.green { background: linear-gradient(to right, #1a4f31 0%, #2e8b57 50%, #1a4f31 100%); }
+        .shell.red { background: linear-gradient(to right, #5c0000 0%, #b22222 50%, #5c0000 100%); } 
+        .shell.grey { background: linear-gradient(to right, #333 0%, #888 50%, #333 100%); } 
+
+        /* 총알 하단 금속(황동) 탄피 디자인 */
+        .shell::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25%; /* 총알 높이의 아랫부분 25% 차지 */
+            /* 금속 느낌의 황동색 그라데이션 */
+            background: linear-gradient(to right, #8a6a1c 0%, #ffd700 50%, #8a6a1c 100%);
+            border-top: 2px solid #111; /* 플라스틱과 금속 사이의 경계선 */
+        }
+        /* ======================================= */
+
+        #turn-overlay {
+            position: absolute; top: 5%; left: 50%; transform: translateX(-50%);
+            font-size: 2.5vw; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 30; text-align: center;
+        }
+
+        #flash-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: white; opacity: 0; z-index: 100;
+            pointer-events: none; transition: opacity 0.05s ease-out;
+        }
+        .flash-active { opacity: 0.8 !important; }
+
+        /* ==== 도구 사용 모달 UI ==== */
+        #tool-modal {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background: #111; border: 3px solid #555; padding: 40px; border-radius: 10px;
+            text-align: center; width: 50%; max-width: 500px;
+        }
+        .tool-icon { margin-bottom: 20px; }
+        .tool-name { font-size: 2.5vw; font-weight: bold; margin-bottom: 15px; color: #fff; }
+        .tool-desc { font-size: 1.5vw; margin-bottom: 30px; color: #ccc; line-height: 1.5; }
+        .modal-buttons { display: flex; justify-content: center; gap: 20px; }
+        .modal-btn { padding: 15px 30px; font-size: 1.5vw; font-weight: bold; background: #333; color: white; border: 2px solid #555; cursor: pointer; }
+        .modal-btn:hover { background: #555; }
+
+        @keyframes shake-enemy {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            25% { transform: translate(-52%, -48%) rotate(-2deg); }
+            50% { transform: translate(-48%, -52%) rotate(2deg); }
+            75% { transform: translate(-51%, -49%) rotate(-1deg); }
+            100% { transform: translate(-50%, -50%) rotate(0deg); }
+        }
+        .shake-enemy-active { animation: shake-enemy 0.1s infinite; }
+
+        @keyframes shake-player {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            25% { transform: translateX(-52%) rotate(-2deg); }
+            50% { transform: translateX(-48%) rotate(2deg); }
+            75% { transform: translateX(-51%) rotate(-1deg); }
+            100% { transform: translateX(-50%) rotate(0deg); }
+        }
+        .shake-player-active { animation: shake-player 0.1s infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="screen active">
+        <div class="ui-container">
+            <h2>나이트클럽 입장</h2>
+            <input type="text" id="playerName" placeholder="이름을 입력하세요"><br>
+            <input type="text" id="roomCode" placeholder="방 번호"><br>
+            <button id="btn-join">입장하기</button>
+        </div>
+    </div>
+
+    <div id="lobby-screen" class="screen">
+        <div class="ui-container">
+            <h2>대기실 (방 번호: <span id="display-room"></span>)</h2>
+            <ul id="player-list" style="list-style: none; padding: 0;"></ul>
+            <button id="btn-ready">게임 준비</button>
+        </div>
+    </div>
+
+    <div id="room-screen" class="screen">
+        <div id="flash-overlay"></div>
+        <div id="turn-overlay">대기 중...</div>
+
+        <div id="tool-modal">
+            <div class="modal-box">
+                <div id="modal-icon" class="tool-icon"></div>
+                <div id="modal-name" class="tool-name"></div>
+                <div id="modal-desc" class="tool-desc"></div>
+                <hr style="border-color: #333; margin-bottom: 20px;">
+                <div class="modal-buttons">
+                    <button class="modal-btn" onclick="confirmToolUse()">[ 사용한다 ]</button>
+                    <button class="modal-btn" onclick="closeToolModal()">[ 취소한다 ]</button>
+                </div>
+            </div>
+        </div>
+
+        <img id="enemy-img" class="enemy-sprite" src="images/enemy_stand.png" alt="Enemy">
+        <img id="player-img" class="player-sprite" src="images/player_stand.png" alt="Player">
+
+        <div id="left-ui">
+            <button id="btn-tool" class="action-btn" onclick="openToolModal()">도구 사용 (<span id="tool-count">0</span>)</button>
+            <button id="btn-self" class="action-btn" onclick="handleActionClick('self')">본인에게 겨눈다</button>
+            <button id="btn-enemy" class="action-btn" onclick="handleActionClick('enemy')">상대에게 겨눈다</button>
+        </div>
+
+        <div id="right-ui">
+            <img class="right-bg-img" src="images/right_panel.png" alt="Right UI Background">
+
+            <div>
+                <div class="status-text">적 생명력</div>
+                <div id="enemy-health" class="health-bar"></div>
+            </div>
+            <hr style="width: 100%; border-color: #333; margin: 10px 0;">
+            <div>
+                <div class="status-text">내 생명력</div>
+                <div id="player-health" class="health-bar"></div>
+            </div>
+            <hr style="width: 100%; border-color: #333; margin: 10px 0;">
+            <div>
+                <div class="status-text">탄창 (12게이지)</div>
+                <div id="ammo-container" class="ammo-cage"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myId = null;
+        let isMyTurn = false;
+        let currentTarget = null; 
+        let myTools = []; 
+
+        const playerImg = document.getElementById('player-img');
+        const enemyImg = document.getElementById('enemy-img');
+
+        // 도구별 정보 (SVG 아이콘 포함)
+        const TOOL_INFO = {
+            'magnifier': { 
+                name: '돋보기', 
+                desc: '해당 차례에 사용할 탄이 공포탄인지 실탄인지 공개합니다.',
+                svg: '<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>'
+            },
+            'slug': { 
+                name: '슬러그탄', 
+                desc: '해당 차례의 실탄이 생명력을 2 깎습니다. 단, 공포탄이면 무효됩니다.',
+                svg: '<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="9" y="8" width="6" height="12" rx="1"/><path d="M9 8 C9 3, 15 3, 15 8"/></svg>'
+            },
+            'syringe': { 
+                name: '주사기', 
+                desc: '생명력을 1 회복합니다.',
+                svg: '<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M18 2l4 4L10 18l-4-4L18 2z M10 18l-4 4-2-2 4-4 M14 6l4 4"/></svg>'
+            },
+            'phone': { 
+                name: '전화기', 
+                desc: '장전된 탄 중 하나의 정체를 알려줍니다. (개인에게만)',
+                svg: '<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
+            },
+            'beer': { 
+                name: '맥주', 
+                desc: '자신에게 쏘기를 해서 공포탄일 경우 생명력을 1 얻습니다.',
+                svg: '<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 8h1a4 4 0 110 8h-1"/><rect x="6" y="8" width="11" height="14" rx="1" ry="1"/><path d="M6 8V6a2 2 0 012-2h7a2 2 0 012 2v2"/></svg>'
+            }
+        };
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        document.getElementById('btn-join').addEventListener('click', () => {
+            const name = document.getElementById('playerName').value;
+            const roomCode = document.getElementById('roomCode').value;
+            if (name && roomCode) {
+                socket.emit('join_room', { name, roomCode });
+                document.getElementById('display-room').innerText = roomCode;
+                showScreen('lobby-screen');
+            }
+        });
+
+        socket.on('update_lobby', (players) => {
+            const list = document.getElementById('player-list');
+            list.innerHTML = '';
+            players.forEach(p => {
+                if (p.id === socket.id) myId = p.id;
+                const li = document.createElement('li');
+                li.innerText = `${p.name} - ${p.isReady ? '✅ 준비완료' : '⏳ 대기중'}`;
+                list.appendChild(li);
+            });
+        });
+
+        document.getElementById('btn-ready').addEventListener('click', () => {
+            socket.emit('toggle_ready');
+        });
+
+        socket.on('start_game', () => {
+            showScreen('room-screen');
+        });
+
+        socket.on('round_started', (data) => {
+            const msg = `스테이지 ${data.stage}\n실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨!`;
+            document.getElementById('turn-overlay').innerText = msg;
+            
+            updateButtonsState(false);
+            
+            setTimeout(() => {
+                renderState(data.turn, data.players, data.total, []);
+            }, 3000);
+        });
+
+        socket.on('state_update', (data) => {
+            renderState(data.turn, data.players, data.total, data.revealed);
+        });
+
+        // 상태 렌더링
+        function renderState(turnId, players, totalBullets, revealedBullets) {
+            isMyTurn = (turnId === myId);
+            document.getElementById('turn-overlay').innerText = isMyTurn ? "당신의 턴입니다" : "상대방의 턴입니다";
+            
+            updateButtonsState(isMyTurn);
+            resetActionButtons(); 
+            
+            playerImg.src = 'images/player_stand.png';
+            enemyImg.src = 'images/enemy_stand.png'; 
+
+            Object.keys(players).forEach(id => {
+                const hpString = '⚡️'.repeat(players[id].hp); 
+                if (id === myId) {
+                    document.getElementById('player-health').innerText = hpString;
+                    myTools = players[id].tools;
+                    document.getElementById('tool-count').innerText = myTools.length;
+                } else {
+                    document.getElementById('enemy-health').innerText = hpString;
+                }
+            });
+
+            const ammoDiv = document.getElementById('ammo-container');
+            ammoDiv.innerHTML = '';
+            for (let i = 0; i < totalBullets; i++) {
+                const shell = document.createElement('div');
+                shell.classList.add('shell');
+                if (i < revealedBullets.length) {
+                    shell.classList.add(revealedBullets[i] === 'live' ? 'red' : 'grey');
+                } else {
+                    shell.classList.add('green');
+                }
+                ammoDiv.appendChild(shell);
+            }
+        }
+
+        // ==== 도구 UI 로직 ====
+        function openToolModal() {
+            if (!isMyTurn) return;
+            if (myTools.length === 0) {
+                alert('현재 보유 중인 도구가 없습니다.');
+                return;
+            }
+            
+            resetActionButtons(); 
+            playerImg.src = 'images/player_stand.png';
+
+            const toolId = myTools[0]; 
+            const tool = TOOL_INFO[toolId];
+            
+            document.getElementById('modal-icon').innerHTML = tool.svg;
+            document.getElementById('modal-name').innerText = `${tool.name}`;
+            document.getElementById('modal-desc').innerText = tool.desc;
+            
+            document.getElementById('tool-modal').style.display = 'flex';
+        }
+
+        function closeToolModal() {
+            document.getElementById('tool-modal').style.display = 'none';
+        }
+
+        function confirmToolUse() {
+            socket.emit('use_tool');
+            closeToolModal();
+        }
+
+        socket.on('tool_used', (data) => {
+            document.getElementById('turn-overlay').innerText = data.message;
+            Object.keys(data.players).forEach(id => {
+                const hpString = '⚡️'.repeat(data.players[id].hp);
+                if (id === myId) {
+                    document.getElementById('player-health').innerText = hpString;
+                    myTools = data.players[id].tools;
+                    document.getElementById('tool-count').innerText = myTools.length;
+                } else {
+                    document.getElementById('enemy-health').innerText = hpString;
+                }
+            });
+        });
+
+        socket.on('tool_private', (msg) => {
+            alert(`[도구 확인 결과]\n${msg}`);
+        });
+
+        // ==== 기존 액션 버튼 로직 ====
+        function resetActionButtons() {
+            if (currentTarget) socket.emit('player_action', 'cancel_aim');
+            currentTarget = null;
+            const btnSelf = document.getElementById('btn-self');
+            const btnEnemy = document.getElementById('btn-enemy');
+            btnSelf.innerText = '본인에게 겨눈다';
+            btnEnemy.innerText = '상대에게 겨눈다';
+            btnSelf.classList.remove('confirm');
+            btnEnemy.classList.remove('confirm');
+        }
+
+        function updateButtonsState(enabled) {
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.disabled = !enabled;
+            });
+        }
+
+        function handleActionClick(action) {
+            if (!isMyTurn) return;
+
+            if (action === 'self') {
+                if (currentTarget === 'self') {
+                    updateButtonsState(false);
+                    socket.emit('shoot', 'self');
+                } else {
+                    resetActionButtons();
+                    currentTarget = 'self';
+                    playerImg.src = 'images/player_shot_fake.png'; 
+                    socket.emit('player_action', 'aim_self'); 
+                    
+                    const btn = document.getElementById('btn-self');
+                    btn.innerText = 'btn본인에게 쏘기';
+                    btn.classList.add('confirm');
+                }
+            } else if (action === 'enemy') {
+                if (currentTarget === 'enemy') {
+                    updateButtonsState(false);
+                    socket.emit('shoot', 'enemy');
+                } else {
+                    resetActionButtons();
+                    currentTarget = 'enemy';
+                    playerImg.src = 'images/player_shot.png'; 
+                    socket.emit('player_action', 'aim_enemy'); 
+                    
+                    const btn = document.getElementById('btn-enemy');
+                    btn.innerText = 'btn상대에게 쏘기';
+                    btn.classList.add('confirm');
+                }
+            }
+        }
+
+        socket.on('enemy_action', (action) => {
+            if (action === 'aim_self') enemyImg.src = 'images/enemy_shot_fake.png';
+            else if (action === 'aim_enemy') enemyImg.src = 'images/enemy_shot.png';
+            else if (action === 'cancel_aim') enemyImg.src = 'images/enemy_stand.png';
+        });
+
+        function triggerFlash() {
+            const flash = document.getElementById('flash-overlay');
+            flash.classList.add('flash-active');
+            setTimeout(() => { flash.classList.remove('flash-active'); }, 100); 
+        }
+
+        // ==== 발사 및 장전 애니메이션 ====
+        socket.on('shoot_action', (data) => {
+            const { shooter, target, bullet, players } = data;
+            
+            if (bullet === 'live') triggerFlash(); 
+            document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
+            
+            Object.keys(players).forEach(id => {
+                const hpString = '⚡️'.repeat(players[id].hp);
+                if (id === myId) document.getElementById('player-health').innerText = hpString;
+                else document.getElementById('enemy-health').innerText = hpString;
+            });
+
+            if (shooter === myId) {
+                if (target === 'enemy' && bullet === 'live') {
+                    enemyImg.classList.add('shake-enemy-active');
+                    enemyImg.src = 'images/enemy_stand_hurt1.png';
+                    setTimeout(() => { enemyImg.src = 'images/enemy_stand_hurt2.png'; }, 100);
+                    setTimeout(() => { enemyImg.src = 'images/enemy_stand_hurt3.png'; }, 200);
+                    setTimeout(() => { 
+                        enemyImg.src = 'images/enemy_stand.png'; 
+                        enemyImg.classList.remove('shake-enemy-active');
+                    }, 400); 
+                }
+
+                setTimeout(() => {
+                    playerImg.src = 'images/player_reload.png';
+                    setTimeout(() => {
+                        playerImg.src = 'images/player_reload_ok.png';
+                        setTimeout(() => { playerImg.src = 'images/player_stand.png'; }, 500); 
+                    }, 500); 
+                }, 500); 
+                
+            } else {
+                if (target === 'self' && bullet === 'live') {
+                    enemyImg.classList.add('shake-enemy-active');
+                    enemyImg.src = 'images/enemy_shot_fake_hurt1.png';
+                    setTimeout(() => { enemyImg.src = 'images/enemy_shot_fake_hurt2.png'; }, 100);
+                    setTimeout(() => { enemyImg.src = 'images/enemy_shot_fake_hurt3.png'; }, 200);
+                    setTimeout(() => { 
+                        enemyImg.src = 'images/enemy_shot_fake.png'; 
+                        enemyImg.classList.remove('shake-enemy-active');
+                    }, 300); 
+                }
+                
+                if (target === 'enemy' && bullet === 'live') {
+                    playerImg.classList.add('shake-player-active');
+                    playerImg.src = 'images/player_stand_hurt1.png';
+                    setTimeout(() => { playerImg.src = 'images/player_stand_hurt2.png'; }, 100);
+                    setTimeout(() => { playerImg.src = 'images/player_stand_hurt3.png'; }, 200);
+                    setTimeout(() => { playerImg.src = 'images/player_stand_hurt4.png'; }, 300);
+                    setTimeout(() => { 
+                        playerImg.src = 'images/player_stand.png'; 
+                        playerImg.classList.remove('shake-player-active');
+                    }, 500); 
+                }
+
+                setTimeout(() => {
+                    enemyImg.src = 'images/enemy_reload1.png';
+                    setTimeout(() => {
+                        enemyImg.src = 'images/enemy_reload2.png';
+                        setTimeout(() => {
+                            enemyImg.src = 'images/enemy_reload_ok.png';
+                            setTimeout(() => { enemyImg.src = 'images/enemy_stand.png'; }, 500); 
+                        }, 400); 
+                    }, 400); 
+                }, 900); 
+            }
+        });
+
+        socket.on('game_over', (data) => {
+            if (data.loser === myId) alert('생명력을 모두 잃었습니다. 패배!');
+            else alert('상대방이 쓰러졌습니다. 승리!');
+            setTimeout(() => { location.reload(); }, 500);
+        });
+    </script>
+</body>
+</html>
