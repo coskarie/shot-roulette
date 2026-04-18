@@ -235,7 +235,7 @@ io.on('connection', (socket) => {
             if (Object.keys(rooms[roomCode].players).length === 0) {
                 delete rooms[roomCode];
             } else {
-                io.to(roomCode).emit('update_lobby', Object.values(rooms[roomCode].players));
+                io.to(roomCode).emit('game_over', { loser: socket.id });
             }
         }
     });
