@@ -230,6 +230,12 @@
             source.connect(globalFilter);
             return audio;
         }
+        // ↓ 이 부분 추가 - 첫 클릭 시 AudioContext 활성화
+        document.addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }, { once: true }); // once: true = 딱 한 번만 실행
 
         // 단일 사운드
         const sfxAiming = createAudioSource('sounds/aiming.wav');
