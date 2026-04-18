@@ -29,10 +29,10 @@ io.on('connection', (socket) => {
             name: name,
             isReady: false,
             id: socket.id,
-            hp: 7,             // 최대 생명력 7
-            tools: [],         // 보유 도구
-            slugActive: false, // 슬러그탄 버프
-            beerActive: false  // 맥주 버프
+            hp: 7,             
+            tools: [],         
+            slugActive: false, 
+            beerActive: false  
         };
 
         io.to(roomCode).emit('update_lobby', Object.values(rooms[roomCode].players));
@@ -57,11 +57,11 @@ io.on('connection', (socket) => {
 
     function startRound(roomCode) {
         const room = rooms[roomCode];
+        if(!room) return;
         const state = room.gameState;
         
         let liveCount = 0, blankCount = 0;
         
-        // 스테이지별 탄환 로직
         if (state.stage === 1) { 
             liveCount = 2; blankCount = 2; 
         } else if (state.stage === 2) { 
@@ -69,8 +69,7 @@ io.on('connection', (socket) => {
         } else if (state.stage === 3) { 
             liveCount = 4; blankCount = 2; 
         } else { 
-            // 4스테이지 이상: 총 7발, 실탄 2~5발 랜덤
-            liveCount = Math.floor(Math.random() * 4) + 2; // 2, 3, 4, 5 중 랜덤
+            liveCount = Math.floor(Math.random() * 4) + 2; 
             blankCount = 7 - liveCount;
         }
 
@@ -83,7 +82,6 @@ io.on('connection', (socket) => {
         state.totalBullets = deck.length;
         state.revealed = [];
 
-        // 라운드 시작 시 무작위 도구 1개 지급 및 버프 초기화
         Object.values(room.players).forEach(p => {
             const randomTool = TOOL_TYPES[Math.floor(Math.random() * TOOL_TYPES.length)];
             p.tools = [randomTool]; 
@@ -91,7 +89,10 @@ io.on('connection', (socket) => {
             p.beerActive = false;
         });
 
-        if(!state.turn) state.turn = Object.keys(room.players)[0];
+        // [핵심 수정 1] 턴 주인이 새로고침 등으로 방을 나갔을 경우, 유효한 플레이어로 턴 강제 변경
+        if (!state.turn || !room.players[state.turn]) {
+            state.turn = Object.keys(room.players)[0];
+        }
 
         io.to(roomCode).emit('round_started', {
             stage: state.stage,
@@ -107,7 +108,6 @@ io.on('connection', (socket) => {
         socket.to(socket.roomCode).emit('enemy_action', actionType);
     });
 
-    // ==== 도구 사용 로직 ====
     socket.on('use_tool', () => {
         const room = rooms[socket.roomCode];
         if(!room) return;
@@ -186,18 +186,16 @@ io.on('connection', (socket) => {
                 nextTurn = socket.id; 
             }
         } else if (target === 'enemy') {
+            // [핵심 수정 2] 상대를 쏘면 공포든 실탄이든 무조건 상대방 턴으로 넘어감
             if (bullet === 'live') {
                 enemy.hp -= damage;
-                nextTurn = socket.id; 
-            } else {
-                nextTurn = enemyId; 
             }
+            nextTurn = enemyId; 
         }
 
-        // [변경됨] 생명력이 0 이하가 되면 즉시 게임 종료 (부활 없음)
         let gameOver = false;
         [socket.id, enemyId].forEach(id => {
-            if (room.players[id].hp <= 0) {
+            if (id && room.players[id] && room.players[id].hp <= 0) {
                 gameOver = true;
                 io.to(socket.roomCode).emit('game_over', { loser: id });
             }
@@ -232,7 +230,13 @@ io.on('connection', (socket) => {
         const roomCode = socket.roomCode;
         if (roomCode && rooms[roomCode]) {
             delete rooms[roomCode].players[socket.id];
-            io.to(roomCode).emit('update_lobby', Object.values(rooms[roomCode].players));
+            
+            // [핵심 수정 3] 방에 아무도 안 남으면 과거 찌꺼기 데이터가 든 유령 방을 완전히 폭파
+            if (Object.keys(rooms[roomCode].players).length === 0) {
+                delete rooms[roomCode];
+            } else {
+                io.to(roomCode).emit('update_lobby', Object.values(rooms[roomCode].players));
+            }
         }
     });
 });
