@@ -57,7 +57,6 @@
             border-left: 4px solid #333; 
         }
 
-        /* ==== 오른쪽 UI 배경 이미지 설정 ==== */
         .right-bg-img {
             position: absolute;
             top: 0;
@@ -65,7 +64,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover; 
-            opacity: 0.1; /* 불투명도 10% */
+            opacity: 0.1; 
             z-index: -1; 
             pointer-events: none; 
         }
@@ -73,7 +72,6 @@
         .status-text { font-size: 1.8vw; font-weight: bold; margin-bottom: 5px; color: #ddd; }
         .health-bar { font-size: 2vw; letter-spacing: 2px; color: #ffcc00; }
         
-        /* ==== 12게이지 샷건 탄환 리얼 디자인 ==== */
         .ammo-cage { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
         .shell { 
             width: 2.2vw; 
@@ -106,7 +104,6 @@
         }
         .flash-active { opacity: 0.8 !important; }
 
-        /* ==== 도구 사용 모달 UI ==== */
         #tool-modal {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center;
@@ -221,16 +218,16 @@
         }
 
         // ==========================================
-        // 대망의 프리로드(사전 다운로드) 시스템 추가
+        // 프리로드 리스트 (새로운 짧은 파일명 적용)
         // ==========================================
         const imagesToPreload = [
-            'images/00login.png', 'images/01lobby.png', 'images/02room.png', 'images/원하시는이미지이름.png',
+            'images/00login.png', 'images/01lobby.png', 'images/02room.png', 'images/right_panel.png',
             'images/enemy_stand.png', 'images/player_stand.png',
             'images/enemy_shot.png', 'images/player_shot.png',
             'images/enemy_shot_fake.png', 'images/player_shot_fake.png',
-            'images/enemy_stand_hurt1.png', 'images/enemy_stand_hurt2.png', 'images/enemy_stand_hurt3.png',
-            'images/player_stand_hurt1.png', 'images/player_stand_hurt2.png', 'images/player_stand_hurt3.png', 'images/player_stand_hurt4.png',
-            'images/enemy_shot_fake_hurt1.png', 'images/enemy_shot_fake_hurt2.png', 'images/enemy_shot_fake_hurt3.png',
+            'images/eh1.png', 'images/eh2.png', 'images/eh3.png',
+            'images/ph1.png', 'images/ph2.png', 'images/ph3.png', 'images/ph4.png',
+            'images/ef1.png', 'images/ef2.png', 'images/ef3.png',
             'images/player_reload.png', 'images/player_reload_ok.png',
             'images/enemy_reload1.png', 'images/enemy_reload2.png', 'images/enemy_reload_ok.png'
         ];
@@ -238,12 +235,11 @@
         let loadedCount = 0;
         const loadingText = document.getElementById('loading-text');
 
-        // 게임 켜지자마자 실행되는 함수
         function startPreload() {
             imagesToPreload.forEach(src => {
                 const img = new Image();
-                img.onload = checkLoadComplete; // 정상 다운로드 시
-                img.onerror = checkLoadComplete; // 혹시 파일이 없어서 에러가 나도 게임은 진행되게끔
+                img.onload = checkLoadComplete;
+                img.onerror = checkLoadComplete;
                 img.src = src;
             });
         }
@@ -253,15 +249,12 @@
             const percent = Math.floor((loadedCount / imagesToPreload.length) * 100);
             loadingText.innerText = `${percent}% 완료`;
 
-            // 모든 이미지 다운로드가 끝나면 로그인 화면으로 이동
             if (loadedCount === imagesToPreload.length) {
-                setTimeout(() => { showScreen('login-screen'); }, 300); // 100% 뜨고 0.3초 뒤에 자연스럽게 이동
+                setTimeout(() => { showScreen('login-screen'); }, 300);
             }
         }
 
-        // 브라우저 켜지자마자 다운로드 시작!
         startPreload();
-        // ==========================================
 
         const socket = io();
         let myId = null;
@@ -272,7 +265,6 @@
         const playerImg = document.getElementById('player-img');
         const enemyImg = document.getElementById('enemy-img');
 
-        // 도구별 정보 (SVG 아이콘 포함)
         const TOOL_INFO = {
             'magnifier': { 
                 name: '돋보기', 
@@ -333,9 +325,7 @@
         socket.on('round_started', (data) => {
             const msg = `스테이지 ${data.stage}\n실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨!`;
             document.getElementById('turn-overlay').innerText = msg;
-            
             updateButtonsState(false);
-            
             setTimeout(() => {
                 renderState(data.turn, data.players, data.total, []);
             }, 3000);
@@ -348,10 +338,8 @@
         function renderState(turnId, players, totalBullets, revealedBullets) {
             isMyTurn = (turnId === myId);
             document.getElementById('turn-overlay').innerText = isMyTurn ? "당신의 턴입니다" : "상대방의 턴입니다";
-            
             updateButtonsState(isMyTurn);
             resetActionButtons(); 
-            
             playerImg.src = 'images/player_stand.png';
             enemyImg.src = 'images/enemy_stand.png'; 
 
@@ -386,17 +374,13 @@
                 alert('현재 보유 중인 도구가 없습니다.');
                 return;
             }
-            
             resetActionButtons(); 
             playerImg.src = 'images/player_stand.png';
-
             const toolId = myTools[0]; 
             const tool = TOOL_INFO[toolId];
-            
             document.getElementById('modal-icon').innerHTML = tool.svg;
             document.getElementById('modal-name').innerText = `${tool.name}`;
             document.getElementById('modal-desc').innerText = tool.desc;
-            
             document.getElementById('tool-modal').style.display = 'flex';
         }
 
@@ -446,7 +430,6 @@
 
         function handleActionClick(action) {
             if (!isMyTurn) return;
-
             if (action === 'self') {
                 if (currentTarget === 'self') {
                     updateButtonsState(false);
@@ -456,9 +439,8 @@
                     currentTarget = 'self';
                     playerImg.src = 'images/player_shot_fake.png'; 
                     socket.emit('player_action', 'aim_self'); 
-                    
                     const btn = document.getElementById('btn-self');
-                    btn.innerText = 'btn본인에게 쏘기';
+                    btn.innerText = '본인에게 쏘기';
                     btn.classList.add('confirm');
                 }
             } else if (action === 'enemy') {
@@ -470,9 +452,8 @@
                     currentTarget = 'enemy';
                     playerImg.src = 'images/player_shot.png'; 
                     socket.emit('player_action', 'aim_enemy'); 
-                    
                     const btn = document.getElementById('btn-enemy');
-                    btn.innerText = 'btn상대에게 쏘기';
+                    btn.innerText = '상대에게 쏘기';
                     btn.classList.add('confirm');
                 }
             }
@@ -492,7 +473,6 @@
 
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
-            
             if (bullet === 'live') triggerFlash(); 
             document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
             
@@ -502,18 +482,20 @@
                 else document.getElementById('enemy-health').innerText = hpString;
             });
 
+            // ==========================================
+            // 애니메이션 로직 (수정된 짧은 파일명 적용)
+            // ==========================================
             if (shooter === myId) {
                 if (target === 'enemy' && bullet === 'live') {
                     enemyImg.classList.add('shake-enemy-active');
-                    enemyImg.src = 'images/enemy_stand_hurt1.png';
-                    setTimeout(() => { enemyImg.src = 'images/enemy_stand_hurt2.png'; }, 100);
-                    setTimeout(() => { enemyImg.src = 'images/enemy_stand_hurt3.png'; }, 200);
+                    enemyImg.src = 'images/eh1.png'; // eh1 적용
+                    setTimeout(() => { enemyImg.src = 'images/eh2.png'; }, 100);
+                    setTimeout(() => { enemyImg.src = 'images/eh3.png'; }, 200);
                     setTimeout(() => { 
                         enemyImg.src = 'images/enemy_stand.png'; 
                         enemyImg.classList.remove('shake-enemy-active');
                     }, 400); 
                 }
-
                 setTimeout(() => {
                     playerImg.src = 'images/player_reload.png';
                     setTimeout(() => {
@@ -521,31 +503,28 @@
                         setTimeout(() => { playerImg.src = 'images/player_stand.png'; }, 500); 
                     }, 500); 
                 }, 500); 
-                
             } else {
                 if (target === 'self' && bullet === 'live') {
                     enemyImg.classList.add('shake-enemy-active');
-                    enemyImg.src = 'images/enemy_shot_fake_hurt1.png';
-                    setTimeout(() => { enemyImg.src = 'images/enemy_shot_fake_hurt2.png'; }, 100);
-                    setTimeout(() => { enemyImg.src = 'images/enemy_shot_fake_hurt3.png'; }, 200);
+                    enemyImg.src = 'images/ef1.png'; // ef1 적용
+                    setTimeout(() => { enemyImg.src = 'images/ef2.png'; }, 100);
+                    setTimeout(() => { enemyImg.src = 'images/ef3.png'; }, 200);
                     setTimeout(() => { 
                         enemyImg.src = 'images/enemy_shot_fake.png'; 
                         enemyImg.classList.remove('shake-enemy-active');
                     }, 300); 
                 }
-                
                 if (target === 'enemy' && bullet === 'live') {
                     playerImg.classList.add('shake-player-active');
-                    playerImg.src = 'images/player_stand_hurt1.png';
-                    setTimeout(() => { playerImg.src = 'images/player_stand_hurt2.png'; }, 100);
-                    setTimeout(() => { playerImg.src = 'images/player_stand_hurt3.png'; }, 200);
-                    setTimeout(() => { playerImg.src = 'images/player_stand_hurt4.png'; }, 300);
+                    playerImg.src = 'images/ph1.png'; // ph1 적용
+                    setTimeout(() => { playerImg.src = 'images/ph2.png'; }, 100);
+                    setTimeout(() => { playerImg.src = 'images/ph3.png'; }, 200);
+                    setTimeout(() => { playerImg.src = 'images/ph4.png'; }, 300);
                     setTimeout(() => { 
                         playerImg.src = 'images/player_stand.png'; 
                         playerImg.classList.remove('shake-player-active');
                     }, 500); 
                 }
-
                 setTimeout(() => {
                     enemyImg.src = 'images/enemy_reload1.png';
                     setTimeout(() => {
