@@ -298,7 +298,7 @@
                     const filter = audioCtx.createBiquadFilter();
                     filter.type = 'lowpass';
                     filter.frequency.setValueAtTime(1000, audioCtx.currentTime); // 즉시 1000Hz로 차단
-                    filter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 3); // 3초에 걸쳐 복귀
+                    filter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 10); // 10초에 걸쳐 복귀
 
                     source.connect(filter);
                     filter.connect(audioCtx.destination);
