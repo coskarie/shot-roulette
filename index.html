@@ -219,6 +219,19 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // ==== 여기에 추가해 주세요 (애니메이션 이미지 미리 다운로드) ====
+        const preloadImages = [
+            'images/enemy_stand_hurt1.png', 'images/enemy_stand_hurt2.png', 'images/enemy_stand_hurt3.png',
+            'images/player_stand_hurt1.png', 'images/player_stand_hurt2.png', 'images/player_stand_hurt3.png', 'images/player_stand_hurt4.png',
+            'images/enemy_shot_fake_hurt1.png', 'images/enemy_shot_fake_hurt2.png', 'images/enemy_shot_fake_hurt3.png',
+            'images/player_reload.png', 'images/player_reload_ok.png',
+            'images/enemy_reload1.png', 'images/enemy_reload2.png', 'images/enemy_reload_ok.png'
+        ];
+        preloadImages.forEach(src => {
+            const img = new Image();
+            img.src = src;
+        });
+        // ==========================================================
         const socket = io();
         let myId = null;
         let isMyTurn = false;
