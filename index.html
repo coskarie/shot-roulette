@@ -212,6 +212,10 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // BGM
+        const bgm = createAudioSource('sounds/bgm.wav');
+        bgm.loop = true; // 루프 설정
+
         // AudioContext 선언 바로 위에 추가
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
@@ -270,6 +274,7 @@
                 globalFilter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 10);
             }, 500);
         }
+        
 
         // ==========================================
         // 프리로드 리스트 (새로운 짧은 파일명 적용)
@@ -384,6 +389,8 @@
 
         socket.on('start_game', () => {
             showScreen('room-screen');
+            bgm.currentTime = 0; // 처음부터 재생
+            bgm.play();
         });
 
         socket.on('round_started', (data) => {
@@ -631,6 +638,18 @@
         socket.on('game_over', (data) => {
             if (data.loser === myId) alert('생명력을 모두 잃었습니다. 패배!');
             else alert('상대방이 쓰러졌습니다. 승리!');
+                    // BGM 페이드 아웃 (3초)
+            const fadeInterval = setInterval(() => {
+                if (bgm.volume > 0.05) {
+                    bgm.volume -= 0.05;
+                } else {
+                    bgm.volume = 0;
+                    bgm.pause();
+                    bgm.currentTime = 0; // 초기화
+                    bgm.volume = 1;      // 볼륨 원상복구
+                    clearInterval(fadeInterval);
+                }
+            }, 150); // 150ms마다 0.05씩 감소 → 약 3초
             setTimeout(() => { location.reload(); }, 500);
         });
     </script>
