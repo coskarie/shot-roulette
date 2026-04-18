@@ -212,6 +212,22 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // 단일 사운드
+        const sfxAiming = new Audio('sounds/aiming.wav');
+        const sfxAimingEnemy = new Audio('sounds/aiming_enemy.wav');
+        const sfxAimingMe = new Audio('sounds/aiming_me.wav');
+        const sfxAimingMeEnemy = new Audio('sounds/aiming_me_enemy.wav');
+        const sfxStage = new Audio('sounds/stage.wav');
+
+        // 랜덤 재생용 (라운드 로빈)
+        const sfxShots = [new Audio('sounds/shot1.wav'), new Audio('sounds/shot2.wav')];
+        const sfxReloads = [new Audio('sounds/reload1.wav'), new Audio('sounds/reload2.wav')];
+        let shotIndex = 0;
+        let reloadIndex = 0;
+
+        function playShot() { sfxShots[shotIndex++ % 2].play(); }
+        function playReload() { sfxReloads[reloadIndex++ % 2].play(); }
+
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
@@ -333,6 +349,7 @@
         });
 
         socket.on('round_started', (data) => {
+            sfxStage.play(); // ← 스테이지 시작 시
             const msg = `스테이지 ${data.stage}\n실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨!`;
             document.getElementById('turn-overlay').innerText = msg;
             updateButtonsState(false);
@@ -447,6 +464,7 @@
                 } else {
                     resetActionButtons();
                     currentTarget = 'self';
+                    sfxAimingMe.play();
                     playerImg.src = 'images/player_shot_fake.png'; 
                     socket.emit('player_action', 'aim_self'); 
                     const btn = document.getElementById('btn-self');
@@ -460,6 +478,7 @@
                 } else {
                     resetActionButtons();
                     currentTarget = 'enemy';
+                    sfxAiming.play();
                     playerImg.src = 'images/player_shot.png'; 
                     socket.emit('player_action', 'aim_enemy'); 
                     const btn = document.getElementById('btn-enemy');
@@ -470,9 +489,15 @@
         }
 
         socket.on('enemy_action', (action) => {
-            if (action === 'aim_self') setImgSrc(enemyImg, 'images/enemy_shot_fake.png');
-            else if (action === 'aim_enemy') setImgSrc(enemyImg, 'images/enemy_shot.png');
-            else if (action === 'cancel_aim') setImgSrc(enemyImg, 'images/enemy_stand.png');
+            if (action === 'aim_self') {
+                sfxAimingMeEnemy.play(); 
+                setImgSrc(enemyImg, 'images/enemy_shot_fake.png');
+            } else if (action === 'aim_enemy') {
+                sfxAimingEnemy.play(); 
+                setImgSrc(enemyImg, 'images/enemy_shot.png');
+            } else if (action === 'cancel_aim') {
+                setImgSrc(enemyImg, 'images/enemy_stand.png');
+            }
         });
 
         function triggerFlash() {
@@ -483,6 +508,7 @@
 
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
+            playShot(); 
             if (bullet === 'live') triggerFlash();
             document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
 
@@ -499,6 +525,7 @@
                     setTimeout(() => { setImgSrc(enemyImg, 'images/eh2.png'); }, 100);
                     setTimeout(() => { setImgSrc(enemyImg, 'images/eh3.png'); }, 200);
                     setTimeout(() => {
+                        playReload();
                         setImgSrc(enemyImg, 'images/enemy_stand.png');
                         enemyImg.classList.remove('shake-enemy-active');
                     }, 400);
@@ -506,6 +533,7 @@
                 setTimeout(() => {
                     setImgSrc(playerImg, 'images/player_reload.png');
                     setTimeout(() => {
+                        playReload();
                         setImgSrc(playerImg, 'images/player_reload_ok.png');
                         setTimeout(() => { setImgSrc(playerImg, 'images/player_stand.png'); }, 500);
                     }, 500);
