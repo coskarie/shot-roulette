@@ -244,6 +244,8 @@
         const sfxAimingMeEnemy = createAudioSource('sounds/aiming_me_enemy.wav');
         const sfxStage = createAudioSource('sounds/stage.wav');
         const sfxHurt = createAudioSource('sounds/hurt.wav');
+        const sfxShotFail = createAudioSource('sounds/shot_fail.wav');
+        const sfxHurtEnemy = createAudioSource('sounds/hurt_enemy.wav');
 
         // 랜덤 재생용 (라운드 로빈)
         const sfxShots = [createAudioSource('sounds/shot1.wav'), createAudioSource('sounds/shot2.wav')];
@@ -251,14 +253,22 @@
         let shotIndex = 0;
         let reloadIndex = 0;
 
-        function playShot() { sfxShots[shotIndex++ % 2].play(); }
+        function playShot(isLive) {
+            if (isLive) {
+                sfxShots[shotIndex++ % 2].play(); // 실탄 = shot1/shot2
+            } else {
+                sfxShotFail.play(); // 공포탄 = shot_fail
+            }
+        }
         function playReload() { sfxReloads[reloadIndex++ % 2].play(); }
 
         // 피격 시 귀먹은 효과
         function triggerHearingEffect() {
-            globalFilter.frequency.cancelScheduledValues(audioCtx.currentTime);
-            globalFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
-            globalFilter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 10);
+            setTimeout(() => {
+                globalFilter.frequency.cancelScheduledValues(audioCtx.currentTime);
+                globalFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                globalFilter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 10);
+            }, 500);
         }
 
         // ==========================================
@@ -536,7 +546,8 @@
 
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
-            playShot();
+            playShot(bullet === 'live'); // ← 'live'면 true, 아니면 false 전달
+
             if (bullet === 'live') triggerFlash();
 
             // 내가 피격당한 경우에만 hurt 재생
@@ -548,6 +559,12 @@
                 sfxHurt.play();
                 triggerHearingEffect();
             }
+
+            // ↓ 이 줄 추가 — 내가 쏴서 적이 맞을 때
+            if (bullet === 'live' && target === 'enemy' && shooter === myId) {
+                sfxHurtEnemy.play();
+            }
+
             document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
 
             Object.keys(players).forEach(id => {
