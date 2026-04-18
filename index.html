@@ -212,6 +212,11 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // AudioContext 선언 바로 위에 추가
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
         // AudioContext + 글로벌 필터
         const audioCtx = new AudioContext();
         const globalFilter = audioCtx.createBiquadFilter();
@@ -591,6 +596,7 @@
                     setTimeout(() => {
                         setImgSrc(enemyImg, 'images/enemy_reload2.png');
                         setTimeout(() => {
+                            playReload();
                             setImgSrc(enemyImg, 'images/enemy_reload_ok.png');
                             setTimeout(() => { setImgSrc(enemyImg, 'images/enemy_stand.png'); }, 500);
                         }, 400);
