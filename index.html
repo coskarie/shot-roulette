@@ -212,10 +212,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // BGM
-        const bgm = createAudioSource('sounds/bgm.mp3');
-        bgm.loop = true; // 루프 설정
-
         // AudioContext 선언 바로 위에 추가
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
@@ -234,6 +230,8 @@
             source.connect(globalFilter);
             return audio;
         }
+        const bgm = createAudioSource('sounds/bgm.mp3');
+        bgm.loop = true;
         // ↓ 이 부분 추가 - 첫 클릭 시 AudioContext 활성화
         document.addEventListener('click', () => {
             if (audioCtx.state === 'suspended') {
@@ -650,7 +648,7 @@
                     clearInterval(fadeInterval);
                 }
             }, 150); // 150ms마다 0.05씩 감소 → 약 3초
-            setTimeout(() => { location.reload(); }, 500);
+            setTimeout(() => { location.reload(); }, 3500);
         });
     </script>
 </body>
