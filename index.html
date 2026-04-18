@@ -235,10 +235,20 @@
         let loadedCount = 0;
         const loadingText = document.getElementById('loading-text');
 
+        function setImgSrc(imgEl, src) {
+            if (preloadedImages[src]) {
+                imgEl.src = preloadedImages[src].src; // 캐시된 것 사용
+            } else {
+                imgEl.src = src;
+            }
+        }
+
+        const preloadedImages = {}; // 최상단에 추가
+
         function startPreload() {
             imagesToPreload.forEach(src => {
                 const img = new Image();
-                img.onload = checkLoadComplete;
+                img.onload = () => { preloadedImages[src] = img; checkLoadComplete(); };
                 img.onerror = checkLoadComplete;
                 img.src = src;
             });
@@ -340,8 +350,8 @@
             document.getElementById('turn-overlay').innerText = isMyTurn ? "당신의 턴입니다" : "상대방의 턴입니다";
             updateButtonsState(isMyTurn);
             resetActionButtons(); 
-            playerImg.src = 'images/player_stand.png';
-            enemyImg.src = 'images/enemy_stand.png'; 
+            setImgSrc(playerImg, 'images/player_stand.png');
+            setImgSrc(enemyImg, 'images/enemy_stand.png');
 
             Object.keys(players).forEach(id => {
                 const hpString = '⚡️'.repeat(players[id].hp); 
@@ -375,7 +385,7 @@
                 return;
             }
             resetActionButtons(); 
-            playerImg.src = 'images/player_stand.png';
+            setImgSrc(playerImg, 'images/player_stand.png');
             const toolId = myTools[0]; 
             const tool = TOOL_INFO[toolId];
             document.getElementById('modal-icon').innerHTML = tool.svg;
@@ -460,9 +470,9 @@
         }
 
         socket.on('enemy_action', (action) => {
-            if (action === 'aim_self') enemyImg.src = 'images/enemy_shot_fake.png';
-            else if (action === 'aim_enemy') enemyImg.src = 'images/enemy_shot.png';
-            else if (action === 'cancel_aim') enemyImg.src = 'images/enemy_stand.png';
+            if (action === 'aim_self') setImgSrc(enemyImg, 'images/enemy_shot_fake.png');
+            else if (action === 'aim_enemy') setImgSrc(enemyImg, 'images/enemy_shot.png');
+            else if (action === 'cancel_aim') setImgSrc(enemyImg, 'images/enemy_stand.png');
         });
 
         function triggerFlash() {
@@ -473,68 +483,65 @@
 
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
-            if (bullet === 'live') triggerFlash(); 
+            if (bullet === 'live') triggerFlash();
             document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
-            
+
             Object.keys(players).forEach(id => {
                 const hpString = '⚡️'.repeat(players[id].hp);
                 if (id === myId) document.getElementById('player-health').innerText = hpString;
                 else document.getElementById('enemy-health').innerText = hpString;
             });
 
-            // ==========================================
-            // 애니메이션 로직 (수정된 짧은 파일명 적용)
-            // ==========================================
             if (shooter === myId) {
                 if (target === 'enemy' && bullet === 'live') {
                     enemyImg.classList.add('shake-enemy-active');
-                    enemyImg.src = 'images/eh1.png'; // eh1 적용
-                    setTimeout(() => { enemyImg.src = 'images/eh2.png'; }, 100);
-                    setTimeout(() => { enemyImg.src = 'images/eh3.png'; }, 200);
-                    setTimeout(() => { 
-                        enemyImg.src = 'images/enemy_stand.png'; 
+                    setImgSrc(enemyImg, 'images/eh1.png');
+                    setTimeout(() => { setImgSrc(enemyImg, 'images/eh2.png'); }, 100);
+                    setTimeout(() => { setImgSrc(enemyImg, 'images/eh3.png'); }, 200);
+                    setTimeout(() => {
+                        setImgSrc(enemyImg, 'images/enemy_stand.png');
                         enemyImg.classList.remove('shake-enemy-active');
-                    }, 400); 
+                    }, 400);
                 }
                 setTimeout(() => {
-                    playerImg.src = 'images/player_reload.png';
+                    setImgSrc(playerImg, 'images/player_reload.png');
                     setTimeout(() => {
-                        playerImg.src = 'images/player_reload_ok.png';
-                        setTimeout(() => { playerImg.src = 'images/player_stand.png'; }, 500); 
-                    }, 500); 
-                }, 500); 
+                        setImgSrc(playerImg, 'images/player_reload_ok.png');
+                        setTimeout(() => { setImgSrc(playerImg, 'images/player_stand.png'); }, 500);
+                    }, 500);
+                }, 500);
             } else {
                 if (target === 'self' && bullet === 'live') {
                     enemyImg.classList.add('shake-enemy-active');
-                    enemyImg.src = 'images/ef1.png'; // ef1 적용
-                    setTimeout(() => { enemyImg.src = 'images/ef2.png'; }, 100);
-                    setTimeout(() => { enemyImg.src = 'images/ef3.png'; }, 200);
-                    setTimeout(() => { 
-                        enemyImg.src = 'images/enemy_shot_fake.png'; 
+                    setImgSrc(enemyImg, 'images/ef1.png');
+                    setTimeout(() => { setImgSrc(enemyImg, 'images/ef2.png'); }, 100);
+                    setTimeout(() => { setImgSrc(enemyImg, 'images/ef3.png'); }, 200);
+                    setTimeout(() => {
+                        setImgSrc(enemyImg, 'images/enemy_shot_fake.png');
                         enemyImg.classList.remove('shake-enemy-active');
-                    }, 300); 
+                    }, 300);
                 }
                 if (target === 'enemy' && bullet === 'live') {
                     playerImg.classList.add('shake-player-active');
-                    playerImg.src = 'images/ph1.png'; // ph1 적용
-                    setTimeout(() => { playerImg.src = 'images/ph2.png'; }, 100);
-                    setTimeout(() => { playerImg.src = 'images/ph3.png'; }, 200);
-                    setTimeout(() => { playerImg.src = 'images/ph4.png'; }, 300);
-                    setTimeout(() => { 
-                        playerImg.src = 'images/player_stand.png'; 
+                    setImgSrc(playerImg, 'images/ph1.png');
+                    setTimeout(() => { setImgSrc(playerImg, 'images/ph2.png'); }, 100);
+                    setTimeout(() => { setImgSrc(playerImg, 'images/ph3.png'); }, 200);
+                    setTimeout(() => { setImgSrc(playerImg, 'images/ph4.png'); }, 300);
+                    setTimeout(() => {
+                        setImgSrc(playerImg, 'images/player_stand.png');
                         playerImg.classList.remove('shake-player-active');
-                    }, 500); 
+                    }, 500);
                 }
                 setTimeout(() => {
-                    enemyImg.src = 'images/enemy_reload1.png';
+                    setImgSrc(enemyImg, 'images/enemy_reload1.png');
                     setTimeout(() => {
-                        enemyImg.src = 'images/enemy_reload2.png';
+                        setImgSrc(enemyImg, 'images/enemy_reload2.png');
                         setTimeout(() => {
-                            enemyImg.src = 'images/enemy_reload_ok.png';
-                            setTimeout(() => { enemyImg.src = 'images/enemy_stand.png'; }, 500); 
-                        }, 400); 
-                    }, 400); 
-                }, 900); 
+                            setImgSrc(enemyImg, 'images/enemy_reload_ok.png');
+                            setTimeout(() => { setImgSrc(enemyImg, 'images/enemy_stand.png'); }, 500);
+                        }, 400);
+                    }, 400);
+                }, 900);
             }
         });
 
