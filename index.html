@@ -80,30 +80,20 @@
             width: 2.2vw; 
             height: 6vw; 
             border: 2px solid #000; 
-            border-radius: 5px 5px 2px 2px; /* 윗부분은 살짝 둥글게, 아랫부분은 평평하게 */
+            border-radius: 5px 5px 2px 2px;
             position: relative;
             box-shadow: 2px 2px 6px rgba(0,0,0,0.8);
-            overflow: hidden; /* 금색 탄피가 밖으로 튀어나오지 않게 */
+            overflow: hidden; 
         }
-        
-        /* 튜브(플라스틱) 부분 입체감 명암 (좌우가 어둡고 가운데가 밝음) */
         .shell.green { background: linear-gradient(to right, #1a4f31 0%, #2e8b57 50%, #1a4f31 100%); }
         .shell.red { background: linear-gradient(to right, #5c0000 0%, #b22222 50%, #5c0000 100%); } 
         .shell.grey { background: linear-gradient(to right, #333 0%, #888 50%, #333 100%); } 
-
-        /* 총알 하단 금속(황동) 탄피 디자인 */
         .shell::after {
             content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 25%; /* 총알 높이의 아랫부분 25% 차지 */
-            /* 금속 느낌의 황동색 그라데이션 */
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 25%;
             background: linear-gradient(to right, #8a6a1c 0%, #ffd700 50%, #8a6a1c 100%);
-            border-top: 2px solid #111; /* 플라스틱과 금속 사이의 경계선 */
+            border-top: 2px solid #111; 
         }
-        /* ======================================= */
 
         #turn-overlay {
             position: absolute; top: 5%; left: 50%; transform: translateX(-50%);
@@ -154,7 +144,14 @@
 </head>
 <body>
 
-    <div id="login-screen" class="screen active">
+    <div id="loading-screen" class="screen active">
+        <div class="ui-container">
+            <h2>게임 데이터를 불러오는 중입니다...</h2>
+            <div id="loading-text" class="health-bar" style="color: #00ff00;">0% 완료</div>
+        </div>
+    </div>
+
+    <div id="login-screen" class="screen">
         <div class="ui-container">
             <h2>나이트클럽 입장</h2>
             <input type="text" id="playerName" placeholder="이름을 입력하세요"><br>
@@ -219,19 +216,54 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // ==== 여기에 추가해 주세요 (애니메이션 이미지 미리 다운로드) ====
-        const preloadImages = [
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        // ==========================================
+        // 대망의 프리로드(사전 다운로드) 시스템 추가
+        // ==========================================
+        const imagesToPreload = [
+            'images/00login.png', 'images/01lobby.png', 'images/02room.png', 'images/원하시는이미지이름.png',
+            'images/enemy_stand.png', 'images/player_stand.png',
+            'images/enemy_shot.png', 'images/player_shot.png',
+            'images/enemy_shot_fake.png', 'images/player_shot_fake.png',
             'images/enemy_stand_hurt1.png', 'images/enemy_stand_hurt2.png', 'images/enemy_stand_hurt3.png',
             'images/player_stand_hurt1.png', 'images/player_stand_hurt2.png', 'images/player_stand_hurt3.png', 'images/player_stand_hurt4.png',
             'images/enemy_shot_fake_hurt1.png', 'images/enemy_shot_fake_hurt2.png', 'images/enemy_shot_fake_hurt3.png',
             'images/player_reload.png', 'images/player_reload_ok.png',
             'images/enemy_reload1.png', 'images/enemy_reload2.png', 'images/enemy_reload_ok.png'
         ];
-        preloadImages.forEach(src => {
-            const img = new Image();
-            img.src = src;
-        });
-        // ==========================================================
+
+        let loadedCount = 0;
+        const loadingText = document.getElementById('loading-text');
+
+        // 게임 켜지자마자 실행되는 함수
+        function startPreload() {
+            imagesToPreload.forEach(src => {
+                const img = new Image();
+                img.onload = checkLoadComplete; // 정상 다운로드 시
+                img.onerror = checkLoadComplete; // 혹시 파일이 없어서 에러가 나도 게임은 진행되게끔
+                img.src = src;
+            });
+        }
+
+        function checkLoadComplete() {
+            loadedCount++;
+            const percent = Math.floor((loadedCount / imagesToPreload.length) * 100);
+            loadingText.innerText = `${percent}% 완료`;
+
+            // 모든 이미지 다운로드가 끝나면 로그인 화면으로 이동
+            if (loadedCount === imagesToPreload.length) {
+                setTimeout(() => { showScreen('login-screen'); }, 300); // 100% 뜨고 0.3초 뒤에 자연스럽게 이동
+            }
+        }
+
+        // 브라우저 켜지자마자 다운로드 시작!
+        startPreload();
+        // ==========================================
+
         const socket = io();
         let myId = null;
         let isMyTurn = false;
@@ -269,11 +301,6 @@
                 svg: '<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M17 8h1a4 4 0 110 8h-1"/><rect x="6" y="8" width="11" height="14" rx="1" ry="1"/><path d="M6 8V6a2 2 0 012-2h7a2 2 0 012 2v2"/></svg>'
             }
         };
-
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-        }
 
         document.getElementById('btn-join').addEventListener('click', () => {
             const name = document.getElementById('playerName').value;
@@ -319,7 +346,6 @@
             renderState(data.turn, data.players, data.total, data.revealed);
         });
 
-        // 상태 렌더링
         function renderState(turnId, players, totalBullets, revealedBullets) {
             isMyTurn = (turnId === myId);
             document.getElementById('turn-overlay').innerText = isMyTurn ? "당신의 턴입니다" : "상대방의 턴입니다";
@@ -355,7 +381,6 @@
             }
         }
 
-        // ==== 도구 UI 로직 ====
         function openToolModal() {
             if (!isMyTurn) return;
             if (myTools.length === 0) {
@@ -403,7 +428,6 @@
             alert(`[도구 확인 결과]\n${msg}`);
         });
 
-        // ==== 기존 액션 버튼 로직 ====
         function resetActionButtons() {
             if (currentTarget) socket.emit('player_action', 'cancel_aim');
             currentTarget = null;
@@ -467,7 +491,6 @@
             setTimeout(() => { flash.classList.remove('flash-active'); }, 100); 
         }
 
-        // ==== 발사 및 장전 애니메이션 ====
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
             
