@@ -32,7 +32,8 @@ io.on('connection', (socket) => {
             hp: 7,             
             tools: [],         
             slugActive: false, 
-            beerActive: false  
+            beerActive: false,
+            usedHitExtraTurn: false // [추가됨] 실탄 타격 시 추가 턴 1회 사용 여부 기억
         };
 
         io.to(roomCode).emit('update_lobby', Object.values(rooms[roomCode].players));
@@ -87,6 +88,7 @@ io.on('connection', (socket) => {
             p.tools = [randomTool]; 
             p.slugActive = false;
             p.beerActive = false;
+            p.usedHitExtraTurn = false; // [추가됨] 라운드 시작 시 추가 턴 기회 갱신
         });
 
         // [핵심 수정 1] 턴 주인이 새로고침 등으로 방을 나갔을 경우, 유효한 플레이어로 턴 강제 변경
@@ -186,11 +188,24 @@ io.on('connection', (socket) => {
                 nextTurn = socket.id; 
             }
         } else if (target === 'enemy') {
-            // [핵심 수정 2] 상대를 쏘면 공포든 실탄이든 무조건 상대방 턴으로 넘어감
+            // [핵심 수정 2] 실탄 적중 시 1회 한정으로 내 턴 유지
             if (bullet === 'live') {
                 enemy.hp -= damage;
+                
+                if (!me.usedHitExtraTurn) {
+                    nextTurn = socket.id; // 첫 타격 성공! 내 턴 한 번 더
+                    me.usedHitExtraTurn = true; // 보너스 기회 썼다고 저장
+                } else {
+                    nextTurn = enemyId; // 두 번째 연속 타격이면 얄짤없이 턴 넘김
+                }
+            } else {
+                nextTurn = enemyId; // 공포탄 쐈으면 무조건 턴 넘김
             }
-            nextTurn = enemyId; 
+        }
+
+        // [핵심 추가] 턴이 상대방에게 넘어가면, 상대방의 '추가 턴 기회'를 새롭게 리셋해줌
+        if (nextTurn !== socket.id && room.players[nextTurn]) {
+            room.players[nextTurn].usedHitExtraTurn = false;
         }
 
         let gameOver = false;
@@ -235,6 +250,7 @@ io.on('connection', (socket) => {
             if (Object.keys(rooms[roomCode].players).length === 0) {
                 delete rooms[roomCode];
             } else {
+                // 선생님이 추가하신 튕김 시 자동 패배 로직 유지!
                 io.to(roomCode).emit('game_over', { loser: socket.id });
             }
         }
