@@ -212,26 +212,42 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // AudioContext + 글로벌 필터
+        const audioCtx = new AudioContext();
+        const globalFilter = audioCtx.createBiquadFilter();
+        globalFilter.type = 'lowpass';
+        globalFilter.frequency.value = 20000;
+        globalFilter.connect(audioCtx.destination);
+
+        function createAudioSource(url) {
+            const audio = new Audio(url);
+            const source = audioCtx.createMediaElementSource(audio);
+            source.connect(globalFilter);
+            return audio;
+        }
+
         // 단일 사운드
-        const sfxAiming = new Audio('sounds/aiming.wav');
-        const sfxAimingEnemy = new Audio('sounds/aiming_enemy.wav');
-        const sfxAimingMe = new Audio('sounds/aiming_me.wav');
-        const sfxAimingMeEnemy = new Audio('sounds/aiming_me_enemy.wav');
-        const sfxStage = new Audio('sounds/stage.wav');
-        const sfxHurt = new Audio('sounds/hurt.wav');
+        const sfxAiming = createAudioSource('sounds/aiming.wav');
+        const sfxAimingEnemy = createAudioSource('sounds/aiming_enemy.wav');
+        const sfxAimingMe = createAudioSource('sounds/aiming_me.wav');
+        const sfxAimingMeEnemy = createAudioSource('sounds/aiming_me_enemy.wav');
+        const sfxStage = createAudioSource('sounds/stage.wav');
+        const sfxHurt = createAudioSource('sounds/hurt.wav');
 
         // 랜덤 재생용 (라운드 로빈)
-        const sfxShots = [new Audio('sounds/shot1.wav'), new Audio('sounds/shot2.wav')];
-        const sfxReloads = [new Audio('sounds/reload1.wav'), new Audio('sounds/reload2.wav')];
+        const sfxShots = [createAudioSource('sounds/shot1.wav'), createAudioSource('sounds/shot2.wav')];
+        const sfxReloads = [createAudioSource('sounds/reload1.wav'), createAudioSource('sounds/reload2.wav')];
         let shotIndex = 0;
         let reloadIndex = 0;
 
         function playShot() { sfxShots[shotIndex++ % 2].play(); }
         function playReload() { sfxReloads[reloadIndex++ % 2].play(); }
 
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+        // 피격 시 귀먹은 효과
+        function triggerHearingEffect() {
+            globalFilter.frequency.cancelScheduledValues(audioCtx.currentTime);
+            globalFilter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            globalFilter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 10);
         }
 
         // ==========================================
@@ -279,31 +295,6 @@
             if (loadedCount === imagesToPreload.length) {
                 setTimeout(() => { showScreen('login-screen'); }, 300);
             }
-        }
-
-        // 상단에 AudioContext 설정 추가
-        const audioCtx = new AudioContext();
-
-        function playHurtWithFilter() {
-            const source = audioCtx.createBufferSource();
-            
-            // hurt.wav 파일 로드
-            fetch('sounds/hurt.wav')
-                .then(res => res.arrayBuffer())
-                .then(buf => audioCtx.decodeAudioData(buf))
-                .then(decoded => {
-                    source.buffer = decoded;
-
-                    // Hi-cut 필터 생성
-                    const filter = audioCtx.createBiquadFilter();
-                    filter.type = 'lowpass';
-                    filter.frequency.setValueAtTime(1000, audioCtx.currentTime); // 즉시 1000Hz로 차단
-                    filter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 10); // 10초에 걸쳐 복귀
-
-                    source.connect(filter);
-                    filter.connect(audioCtx.destination);
-                    source.start();
-                });
         }
 
         startPreload();
@@ -534,10 +525,17 @@
 
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
-            playShot(); 
-            if (bullet === 'live') {
-                triggerFlash();
-                playHurtWithFilter();
+            playShot();
+            if (bullet === 'live') triggerFlash();
+
+            // 내가 피격당한 경우에만 hurt 재생
+            if (bullet === 'live' && target === 'enemy' && shooter !== myId) {
+                sfxHurt.play();
+                triggerHearingEffect();
+            }
+            if (bullet === 'live' && target === 'self' && shooter === myId) {
+                sfxHurt.play();
+                triggerHearingEffect();
             }
             document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
 
@@ -554,7 +552,6 @@
                     setTimeout(() => { setImgSrc(enemyImg, 'images/eh2.png'); }, 100);
                     setTimeout(() => { setImgSrc(enemyImg, 'images/eh3.png'); }, 200);
                     setTimeout(() => {
-                        playReload();
                         setImgSrc(enemyImg, 'images/enemy_stand.png');
                         enemyImg.classList.remove('shake-enemy-active');
                     }, 400);
