@@ -218,6 +218,7 @@
         const sfxAimingMe = new Audio('sounds/aiming_me.wav');
         const sfxAimingMeEnemy = new Audio('sounds/aiming_me_enemy.wav');
         const sfxStage = new Audio('sounds/stage.wav');
+        const sfxHurt = new Audio('sounds/hurt.wav');
 
         // 랜덤 재생용 (라운드 로빈)
         const sfxShots = [new Audio('sounds/shot1.wav'), new Audio('sounds/shot2.wav')];
@@ -278,6 +279,31 @@
             if (loadedCount === imagesToPreload.length) {
                 setTimeout(() => { showScreen('login-screen'); }, 300);
             }
+        }
+
+        // 상단에 AudioContext 설정 추가
+        const audioCtx = new AudioContext();
+
+        function playHurtWithFilter() {
+            const source = audioCtx.createBufferSource();
+            
+            // hurt.wav 파일 로드
+            fetch('sounds/hurt.wav')
+                .then(res => res.arrayBuffer())
+                .then(buf => audioCtx.decodeAudioData(buf))
+                .then(decoded => {
+                    source.buffer = decoded;
+
+                    // Hi-cut 필터 생성
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(1000, audioCtx.currentTime); // 즉시 1000Hz로 차단
+                    filter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 3); // 3초에 걸쳐 복귀
+
+                    source.connect(filter);
+                    filter.connect(audioCtx.destination);
+                    source.start();
+                });
         }
 
         startPreload();
@@ -509,7 +535,10 @@
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
             playShot(); 
-            if (bullet === 'live') triggerFlash();
+            if (bullet === 'live') {
+                triggerFlash();
+                playHurtWithFilter();
+            }
             document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
 
             Object.keys(players).forEach(id => {
