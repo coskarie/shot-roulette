@@ -136,7 +136,9 @@ io.on('connection', (socket) => {
             msg = '전화기를 사용했습니다!';
             if (state.bullets.length > 0) {
                 const idx = Math.floor(Math.random() * state.bullets.length);
-                privateMsg = `${idx + 1}번째 탄은 [${state.bullets[idx] === 'live' ? '실탄' : '공포탄'}] 입니다.`;
+                // [핵심 로직 수정] 전화기가 무조건 '전체 탄'을 기준으로 알려주도록 변경
+                const originalIndex = state.revealed.length + idx + 1;
+                privateMsg = `전체 탄 중 ${originalIndex}번째 탄은 [${state.bullets[idx] === 'live' ? '실탄' : '공포탄'}] 입니다.`;
             } else {
                 privateMsg = '남은 탄이 없습니다.';
             }
@@ -188,7 +190,7 @@ io.on('connection', (socket) => {
                 nextTurn = socket.id; 
             }
         } else if (target === 'enemy') {
-            // [핵심 수정 2] 실탄 적중 시 1회 한정으로 내 턴 유지
+            // [핵심 로직 2] 실탄 적중 시 1회 한정으로 내 턴 유지
             if (bullet === 'live') {
                 enemy.hp -= damage;
                 
