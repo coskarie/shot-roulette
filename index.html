@@ -214,10 +214,15 @@
 
         /* ==== 스테이지 및 턴 인디케이터 스타일 ==== */
         #stage-display {
+            /* ===== [수정됨] 좌측 최상단 고정 (대략 x=40, y=30 비율) ===== */
+            position: absolute; 
+            top: 3%; 
+            left: 3%; 
+            z-index: 100;
+            
             text-align: left;
             font-family: "Black And White Picture", system-ui;
             font-size: 1.8vw;
-            margin-bottom: 20px;
             color: #bbb;
         }
         #my-turn-status {
@@ -234,15 +239,14 @@
             text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00, 0 0 20px #00ff00;
         }
 
-        /* ==== 오디오 컨트롤 시스템 스타일 ==== */
         #audio-settings-container {
             position: absolute;
-            right: 20px;
-            bottom: 20px;
+            left: 3%;  
+            bottom: 3%; 
             z-index: 100;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start; 
         }
         #audio-panel {
             background: rgba(0, 0, 0, 0.85);
@@ -334,15 +338,28 @@
             </div>
         </div>
 
+        <div id="stage-display">
+            STAGE <span id="current-stage-num">1</span> 
+            <span id="my-turn-status">[ My Turn ]</span>
+        </div>
+
+        <div id="audio-settings-container">
+            <div id="audio-panel">
+                <div class="audio-ctrl-item">
+                    BGM <button id="dot-bgm" class="toggle-dot dot-on" onclick="toggleBGM()"></button>
+                </div>
+                <div style="color: #444;">/</div>
+                <div class="audio-ctrl-item">
+                    Fx <button id="dot-sfx" class="toggle-dot dot-on" onclick="toggleSFX()"></button>
+                </div>
+            </div>
+            <button id="btn-speaker" onclick="toggleAudioPanel()">🔊</button>
+        </div>
+
         <img id="enemy-img" class="enemy-sprite" src="images/enemy_stand.png" alt="Enemy">
         <img id="player-img" class="player-sprite" src="images/player_stand.png" alt="Player">
 
         <div id="left-ui">
-            <div id="stage-display">
-                STAGE <span id="current-stage-num">1</span> 
-                <span id="my-turn-status">[ My Turn ]</span>
-            </div>
-            
             <button id="btn-tool" class="action-btn" onclick="openToolModal()">도구 사용 (<span id="tool-count">0</span>)</button>
             <button id="btn-self" class="action-btn" onclick="handleActionClick('self')">본인에게 겨눈다</button>
             <button id="btn-enemy" class="action-btn" onclick="handleActionClick('enemy')">상대에게 겨눈다</button>
@@ -365,20 +382,7 @@
                 <div class="status-text">탄창 (12게이지)</div>
                 <div id="ammo-container" class="ammo-cage"></div>
             </div>
-
-            <div id="audio-settings-container">
-                <div id="audio-panel">
-                    <div class="audio-ctrl-item">
-                        BGM <button id="dot-bgm" class="toggle-dot dot-on" onclick="toggleBGM()"></button>
-                    </div>
-                    <div style="color: #444;">/</div>
-                    <div class="audio-ctrl-item">
-                        Fx <button id="dot-sfx" class="toggle-dot dot-on" onclick="toggleSFX()"></button>
-                    </div>
-                </div>
-                <button id="btn-speaker" onclick="toggleAudioPanel()">🔊</button>
             </div>
-        </div>
     </div>
 
 <script src="/socket.io/socket.io.js"></script>
