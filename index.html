@@ -318,6 +318,7 @@
         const sfxAimingMe = createAudioSource('sounds/aiming_me.wav');
         const sfxAimingMeEnemy = createAudioSource('sounds/aiming_me_enemy.wav');
         const sfxStage = createAudioSource('sounds/stage.wav');
+        const sfxStageReload = createAudioSource('sounds/stage_reload.wav');
         const sfxHurt = createAudioSource('sounds/hurt.wav');
         const sfxShotFail = createAudioSource('sounds/shot_fail.wav');
         const sfxHurtEnemy = createAudioSource('sounds/hurt_enemy.wav');
@@ -474,8 +475,11 @@
             setTimeout(() => {
                 stageOverlay.classList.remove('stage-active');
                 
+                // ===== [추가됨] 암전이 걷히며 텍스트가 뜰 때 장전 사운드 재생 =====
+                sfxStageReload.play();
+                
                 // 2. 암전이 걷히면서 탄환 정보만 출력
-                const msg = `실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨.`;
+                const msg = `실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨!`;
                 showTurnMessage(msg);
                 
                 // 탄환 정보 확인 후 2.5초 뒤에 본격적인 게임 렌더링 시작
