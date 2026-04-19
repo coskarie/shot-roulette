@@ -92,9 +92,37 @@
             border-top: 2px solid #111; 
         }
 
+        /* ==== 턴 오버레이 (UI 배경 및 비율 수정) ==== */
         #turn-overlay {
-            position: absolute; top: 5%; left: 50%; transform: translateX(-50%);
-            font-size: 2.5vw; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 30; text-align: center;
+            position: absolute; top: 5%; left: 50%; 
+            font-size: 2vw; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 30; text-align: center;
+            
+            /* 백그라운드 이미지 추가 */
+            background-image: url('images/turnUI.png');
+            background-size: 100% 100%; /* 텍스트 길이에 맞춰 배경이 늘어남 */
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            /* 4:1 느낌을 살리기 위한 상하/좌우 패딩 조정 */
+            padding: 2vw 6vw; 
+            white-space: pre-line; /* \n 줄바꿈 인식 유지 */
+            opacity: 0; /* 초기 상태 숨김 */
+        }
+
+        /* ==== 턴 오버레이 등장 애니메이션 ==== */
+        @keyframes popupTurn {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.7);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1);
+            }
+        }
+        .turn-animate {
+            /* 0.4초 동안 70%에서 100%로 페이드인+확대 */
+            animation: popupTurn 0.4s ease-out forwards;
         }
 
         #flash-overlay {
@@ -166,6 +194,7 @@
 
     <div id="room-screen" class="screen">
         <div id="flash-overlay"></div>
+        
         <div id="turn-overlay">대기 중...</div>
 
         <div id="tool-modal">
@@ -212,11 +241,21 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // AudioContext 선언 바로 위에 추가
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
         }
+
+        // ==== 턴 오버레이 애니메이션 전용 함수 ====
+        function showTurnMessage(msg) {
+            const overlay = document.getElementById('turn-overlay');
+            // innerText 대신 innerHTML을 사용하여 색상 태그가 적용되도록 수정
+            overlay.innerHTML = msg; 
+            overlay.classList.remove('turn-animate');
+            void overlay.offsetWidth; 
+            overlay.classList.add('turn-animate');
+        }
+
         // AudioContext + 글로벌 필터
         const audioCtx = new AudioContext();
         const globalFilter = audioCtx.createBiquadFilter();
@@ -232,12 +271,12 @@
         }
         const bgm = createAudioSource('sounds/bgm.mp3');
         bgm.loop = true;
-        // ↓ 이 부분 추가 - 첫 클릭 시 AudioContext 활성화
+        
         document.addEventListener('click', () => {
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
-        }, { once: true }); // once: true = 딱 한 번만 실행
+        }, { once: true });
 
         // 단일 사운드
         const sfxAiming = createAudioSource('sounds/aiming.wav');
@@ -257,9 +296,9 @@
 
         function playShot(isLive) {
             if (isLive) {
-                sfxShots[shotIndex++ % 2].play(); // 실탄 = shot1/shot2
+                sfxShots[shotIndex++ % 2].play();
             } else {
-                sfxShotFail.play(); // 공포탄 = shot_fail
+                sfxShotFail.play(); 
             }
         }
         function playReload() { sfxReloads[reloadIndex++ % 2].play(); }
@@ -272,13 +311,10 @@
                 globalFilter.frequency.linearRampToValueAtTime(20000, audioCtx.currentTime + 10);
             }, 500);
         }
-        
 
-        // ==========================================
-        // 프리로드 리스트 (새로운 짧은 파일명 적용)
-        // ==========================================
         const imagesToPreload = [
             'images/00login.png', 'images/01lobby.png', 'images/02room.png', 'images/right_panel.png',
+            'images/turnUI.png', // <-- 프리로드 리스트에 turnUI.png 추가 완료
             'images/enemy_stand.png', 'images/player_stand.png',
             'images/enemy_shot.png', 'images/player_shot.png',
             'images/enemy_shot_fake.png', 'images/player_shot_fake.png',
@@ -291,16 +327,15 @@
 
         let loadedCount = 0;
         const loadingText = document.getElementById('loading-text');
+        const preloadedImages = {}; 
 
         function setImgSrc(imgEl, src) {
             if (preloadedImages[src]) {
-                imgEl.src = preloadedImages[src].src; // 캐시된 것 사용
+                imgEl.src = preloadedImages[src].src; 
             } else {
                 imgEl.src = src;
             }
         }
-
-        const preloadedImages = {}; // 최상단에 추가
 
         function startPreload() {
             imagesToPreload.forEach(src => {
@@ -387,14 +422,17 @@
 
         socket.on('start_game', () => {
             showScreen('room-screen');
-            bgm.currentTime = 0; // 처음부터 재생
+            bgm.currentTime = 0; 
             bgm.play();
         });
 
         socket.on('round_started', (data) => {
-            sfxStage.play(); // ← 스테이지 시작 시
+            sfxStage.play(); 
             const msg = `스테이지 ${data.stage}\n실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨!`;
-            document.getElementById('turn-overlay').innerText = msg;
+            
+            // 기존 innerText 수정 방식을 새로운 애니메이션 함수로 교체
+            showTurnMessage(msg);
+            
             updateButtonsState(false);
             setTimeout(() => {
                 renderState(data.turn, data.players, data.total, []);
@@ -407,7 +445,10 @@
 
         function renderState(turnId, players, totalBullets, revealedBullets) {
             isMyTurn = (turnId === myId);
-            document.getElementById('turn-overlay').innerText = isMyTurn ? "당신의 턴입니다" : "상대방의 턴입니다";
+            
+            // 기존 innerText 수정 방식을 새로운 애니메이션 함수로 교체
+            showTurnMessage(isMyTurn ? "당신의 턴입니다" : "상대방의 턴입니다");
+            
             updateButtonsState(isMyTurn);
             resetActionButtons(); 
             setImgSrc(playerImg, 'images/player_stand.png');
@@ -464,7 +505,9 @@
         }
 
         socket.on('tool_used', (data) => {
-            document.getElementById('turn-overlay').innerText = data.message;
+            // 기존 innerText 수정 방식을 새로운 애니메이션 함수로 교체
+            showTurnMessage(data.message);
+            
             Object.keys(data.players).forEach(id => {
                 const hpString = '⚡️'.repeat(data.players[id].hp);
                 if (id === myId) {
@@ -551,11 +594,10 @@
 
         socket.on('shoot_action', (data) => {
             const { shooter, target, bullet, players } = data;
-            playShot(bullet === 'live'); // ← 'live'면 true, 아니면 false 전달
+            playShot(bullet === 'live'); 
 
             if (bullet === 'live') triggerFlash();
 
-            // 내가 피격당한 경우에만 hurt 재생
             if (bullet === 'live' && target === 'enemy' && shooter !== myId) {
                 sfxHurt.play();
                 triggerHearingEffect();
@@ -565,12 +607,24 @@
                 triggerHearingEffect();
             }
 
-            // ↓ 이 줄 추가 — 내가 쏴서 적이 맞을 때
             if (bullet === 'live' && target === 'enemy' && shooter === myId) {
                 sfxHurtEnemy.play();
             }
 
-            document.getElementById('turn-overlay').innerText = `[${bullet === 'live' ? '실탄' : '공포탄'}] 발사됨!`;
+            // ===== [색상 적용 로직] HTML 태그를 사용해 실탄은 빨강, 공포탄은 회색으로 처리 =====
+            const coloredBulletText = bullet === 'live' 
+                ? '<span style="color: #ff4444;">실탄</span>' 
+                : '<span style="color: #aaaaaa;">공포탄</span>';
+            showTurnMessage(`[${coloredBulletText}]이 발사 되었습니다.`);
+            // =========================================================================================
+
+            // ===== [핵심 추가 로직] 화면 상의 초록색(미확인) 탄환 하나를 즉시 결과 색상으로 변경 =====
+            const shells = document.querySelectorAll('#ammo-container .shell.green');
+            if (shells.length > 0) {
+                shells[0].classList.remove('green');
+                shells[0].classList.add(bullet === 'live' ? 'red' : 'grey');
+            }
+            // =========================================================================================
 
             Object.keys(players).forEach(id => {
                 const hpString = '⚡️'.repeat(players[id].hp);
@@ -636,18 +690,18 @@
         socket.on('game_over', (data) => {
             if (data.loser === myId) alert('생명력을 모두 잃었습니다. 패배!');
             else alert('상대방이 쓰러졌습니다. 승리!');
-                    // BGM 페이드 아웃 (3초)
+            
             const fadeInterval = setInterval(() => {
                 if (bgm.volume > 0.05) {
                     bgm.volume -= 0.05;
                 } else {
                     bgm.volume = 0;
                     bgm.pause();
-                    bgm.currentTime = 0; // 초기화
-                    bgm.volume = 1;      // 볼륨 원상복구
+                    bgm.currentTime = 0; 
+                    bgm.volume = 1;      
                     clearInterval(fadeInterval);
                 }
-            }, 150); // 150ms마다 0.05씩 감소 → 약 3초
+            }, 150); 
             setTimeout(() => { location.reload(); }, 3500);
         });
     </script>
