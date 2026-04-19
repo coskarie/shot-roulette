@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nogada Roulette (Web version)</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Black+And+White+Picture&display=swap" rel="stylesheet">
@@ -179,6 +179,24 @@
             100% { transform: translateX(-50%) rotate(0deg); }
         }
         .shake-player-active { animation: shake-player 0.1s infinite; }
+
+        /* ==== STAGE 전체 화면 암전 효과 ==== */
+        #stage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: black;
+            color: white;
+            z-index: 300; /* 제일 위로 오도록 설정 */
+            display: flex; justify-content: center; align-items: center;
+            font-size: 8vw; /* 크고 섬뜩하게 */
+            font-family: "Black And White Picture", system-ui; /* 방금 적용한 폰트 사용 */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .stage-active {
+            opacity: 1 !important;
+        }
+
     </style>
 </head>
 <body>
@@ -210,6 +228,7 @@
     <div id="room-screen" class="screen">
         <div id="flash-overlay"></div>
         
+        <div id="stage-overlay">STAGE 1</div>
         <div id="turn-overlay">대기 중...</div>
 
         <div id="tool-modal">
@@ -443,15 +462,27 @@
 
         socket.on('round_started', (data) => {
             sfxStage.play(); 
-            const msg = `스테이지 ${data.stage}\n실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨!`;
             
-            // 기존 innerText 수정 방식을 새로운 애니메이션 함수로 교체
-            showTurnMessage(msg);
+            // 1. 전체 화면 암전 및 STAGE 텍스트 표시
+            const stageOverlay = document.getElementById('stage-overlay');
+            stageOverlay.innerText = `STAGE ${data.stage}`;
+            stageOverlay.classList.add('stage-active');
             
             updateButtonsState(false);
+
+            // 2초(2000ms) 동안 암전 효과를 보여준 뒤 걷어냄
             setTimeout(() => {
-                renderState(data.turn, data.players, data.total, []);
-            }, 3000);
+                stageOverlay.classList.remove('stage-active');
+                
+                // 2. 암전이 걷히면서 탄환 정보만 출력
+                const msg = `실탄: ${data.live}개, 공포탄: ${data.blank}개 장전됨.`;
+                showTurnMessage(msg);
+                
+                // 탄환 정보 확인 후 2.5초 뒤에 본격적인 게임 렌더링 시작
+                setTimeout(() => {
+                    renderState(data.turn, data.players, data.total, []);
+                }, 2500); 
+            }, 2000);
         });
 
         socket.on('state_update', (data) => {
