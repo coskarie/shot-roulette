@@ -252,7 +252,7 @@ io.on('connection', (socket) => {
             if (Object.keys(rooms[roomCode].players).length === 0) {
                 delete rooms[roomCode];
             } else {
-                // 선생님이 추가하신 튕김 시 자동 패배 로직 유지!
+                // 튕김 시 자동 패배 로직 유지!
                 io.to(roomCode).emit('game_over', { loser: socket.id });
             }
         }
